@@ -333,6 +333,35 @@ public sealed class Form : Control
 
         NativeMenu.Set(NativeHandle, _nativeMenu);
         NativeMenu.Destroy(oldMenu);
+        PerformLayout();
+    }
+
+    internal override void GetClientSize(out int left, out int top, out int width, out int height)
+    {
+        base.GetClientSize(out left, out top, out width, out height);
+        height += GetNativeMainMenuHeight();
+    }
+
+    internal override void GetChildWindowOffset(out int left, out int top)
+    {
+        left = 0;
+        top = -GetNativeMainMenuHeight();
+    }
+
+    private int GetNativeMainMenuHeight()
+    {
+        if (!IsHandleCreated || _nativeMenu == default || GetVisibleMainMenuStrip() is null)
+        {
+            return 0;
+        }
+
+        int dpi = NativeApplication.GetCurrentDpi(NativeHandle);
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 14393))
+        {
+            return PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CYMENU, (uint)dpi);
+        }
+
+        return PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CYMENU);
     }
 
     internal LRESULT WndProc(HWND window, uint message, WPARAM wParam, LPARAM lParam)

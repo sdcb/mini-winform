@@ -27,7 +27,7 @@ static Form CreateMainForm()
     Label title = new()
     {
         Left = 20,
-        Top = 20,
+        Top = 44,
         Width = 680,
         Height = 24,
         Text = "A lightweight Win32 UI layer for tiny Native AOT tools.",
@@ -36,7 +36,7 @@ static Form CreateMainForm()
     Label description = new()
     {
         Left = 20,
-        Top = 52,
+        Top = 76,
         Width = 680,
         Height = 52,
         Text = "This demo intentionally stays small. It shows layout, menus, progress, list selection, timers, and task dialogs using the WinForms-like API surface.",
@@ -45,7 +45,7 @@ static Form CreateMainForm()
     TextBox input = new()
     {
         Left = 20,
-        Top = 116,
+        Top = 140,
         Width = 320,
         Text = "Native AOT utility",
     };
@@ -53,7 +53,7 @@ static Form CreateMainForm()
     CheckBox marquee = new()
     {
         Left = 360,
-        Top = 114,
+        Top = 138,
         Width = 220,
         Text = "Use marquee progress bar",
     };
@@ -61,7 +61,7 @@ static Form CreateMainForm()
     ListBox scenarios = new()
     {
         Left = 20,
-        Top = 156,
+        Top = 180,
         Width = 220,
         Height = 180,
     };
@@ -71,7 +71,7 @@ static Form CreateMainForm()
     TextBox notes = new()
     {
         Left = 260,
-        Top = 156,
+        Top = 180,
         Width = 440,
         Height = 180,
         Multiline = true,
@@ -82,7 +82,7 @@ static Form CreateMainForm()
     ProgressBar progress = new()
     {
         Left = 20,
-        Top = 362,
+        Top = 386,
         Width = 680,
         Height = 24,
     };
@@ -90,7 +90,7 @@ static Form CreateMainForm()
     Label status = new()
     {
         Left = 20,
-        Top = 398,
+        Top = 422,
         Width = 680,
         Height = 30,
         Text = "Ready.",
@@ -99,7 +99,7 @@ static Form CreateMainForm()
     Button startButton = new()
     {
         Left = 20,
-        Top = 440,
+        Top = 464,
         Width = 130,
         Text = "Start demo",
         BackColor = Color.FromArgb(230, 240, 255),
@@ -108,7 +108,7 @@ static Form CreateMainForm()
     Button resetButton = new()
     {
         Left = 164,
-        Top = 440,
+        Top = 464,
         Width = 130,
         Text = "Reset",
     };

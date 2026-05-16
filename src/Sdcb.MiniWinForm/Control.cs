@@ -475,7 +475,7 @@ public abstract class Control : IWin32Window
             throw new InvalidOperationException("A child control needs a parent with a created handle.");
         }
 
-        AssignHandle(NativeControl.CreateChild(this, Parent.NativeHandle, NativeClassName, Text, NativeStyle, NativeExStyle));
+        AssignHandle(NativeControl.CreateChild(this, Parent, NativeClassName, Text, NativeStyle, NativeExStyle));
         NativeControl.Register(this, NativeHandle);
         NativeControl.ApplyDefaultFont(NativeHandle);
         NativeControl.Show(NativeHandle, Visible);
@@ -689,6 +689,12 @@ public abstract class Control : IWin32Window
         height = Height;
     }
 
+    internal virtual void GetChildWindowOffset(out int left, out int top)
+    {
+        left = 0;
+        top = 0;
+    }
+
     private void SetSpecifiedBounds(int left, int top, int width, int height)
     {
         Application.VerifyUiThread();
@@ -810,7 +816,10 @@ public abstract class Control : IWin32Window
 
         if (IsHandleCreated)
         {
-            NativeControl.Move(NativeHandle, Left, Top, Width, Height);
+            int childWindowLeft = 0;
+            int childWindowTop = 0;
+            Parent?.GetChildWindowOffset(out childWindowLeft, out childWindowTop);
+            NativeControl.Move(NativeHandle, Left + childWindowLeft, Top + childWindowTop, Width, Height);
         }
 
         if (sizeChanged)
@@ -896,7 +905,7 @@ internal static unsafe class NativeControl
 
     internal static HWND CreateChild(
         Control owner,
-        HWND parent,
+        Control parent,
         string className,
         string text,
         WINDOW_STYLE style,
@@ -911,16 +920,17 @@ internal static unsafe class NativeControl
         fixed (char* classNamePtr = className)
         fixed (char* textPtr = text)
         {
+            parent.GetChildWindowOffset(out int childWindowLeft, out int childWindowTop);
             HWND handle = PInvoke.CreateWindowEx(
                 exStyle,
                 new PCWSTR(classNamePtr),
                 new PCWSTR(textPtr),
                 finalStyle,
-                owner.Left,
-                owner.Top,
+                owner.Left + childWindowLeft,
+                owner.Top + childWindowTop,
                 owner.Width,
                 owner.Height,
-                parent,
+                parent.NativeHandle,
                 new HMENU(_nextControlId++),
                 Application.Instance,
                 null);

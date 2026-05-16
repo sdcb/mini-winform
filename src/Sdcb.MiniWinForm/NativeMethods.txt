@@ -21,6 +21,8 @@ TrackPopupMenuEx
 SetForegroundWindow
 GetWindowRect
 GetClientRect
+GetSystemMetrics
+GetSystemMetricsForDpi
 ShowWindow
 UpdateWindow
 GetMessage
