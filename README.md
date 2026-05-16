@@ -16,14 +16,12 @@ The goal is simple: keep a programming model that feels familiar to WinForms, bu
 dotnet add package Sdcb.MiniWinForm
 ```
 
-NuGet package: Sdcb.MiniWinForm
-
-Repository: https://github.com/sdcb/mini-winform
-
 ## Quick example
 
 ```csharp
 using Sdcb.MiniWinForm;
+
+Application.EnableVisualStyles();
 
 Form form = new()
 {

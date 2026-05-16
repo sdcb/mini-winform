@@ -63,6 +63,8 @@ DrawFrameControl
 FillRect
 FrameRect
 InitCommonControlsEx
+CreateActCtx
+ActivateActCtx
 TaskDialog
 GetOpenFileName
 GetSaveFileName
@@ -75,3 +77,4 @@ DRAWITEMSTRUCT
 NONCLIENTMETRICSW
 OPENFILENAMEW
 BROWSEINFOW
+ACTCTXW

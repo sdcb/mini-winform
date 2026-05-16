@@ -5,6 +5,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <RootNamespace>Sdcb.MiniWinForm</RootNamespace>
     <AssemblyName>Sdcb.MiniWinForm</AssemblyName>
+    <Win32Manifest>XPThemes.manifest</Win32Manifest>
     <VersionPrefix>0.1</VersionPrefix>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -25,6 +26,7 @@
 
   <ItemGroup>
     <AdditionalFiles Include="NativeMethods.txt" />
+    <EmbeddedResource Include="XPThemes.manifest" LogicalName="Sdcb.MiniWinForm.XPThemes.manifest" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" Link="README.md" />
   </ItemGroup>
 

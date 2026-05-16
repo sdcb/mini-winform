@@ -1,6 +1,8 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.System.ApplicationInstallationAndServicing;
 using Windows.Win32.UI.Controls;
 using Windows.Win32.UI.WindowsAndMessaging;
 
@@ -12,6 +14,11 @@ public static class Application
     private static Form? _mainForm;
 
     internal static HINSTANCE Instance { get; private set; }
+
+    public static void EnableVisualStyles()
+    {
+        NativeApplication.EnableVisualStyles();
+    }
 
     public static void Run(Form mainWindow)
     {
@@ -111,9 +118,91 @@ public static class Application
 
 internal static unsafe class NativeApplication
 {
+    private const string XpThemesManifestResourceName = "Sdcb.MiniWinForm.XPThemes.manifest";
+    private const int NativeResourceManifestId = 2;
+    private const uint ActctxFlagResourceNameValid = 0x00000008;
+    private const uint ActctxFlagHmoduleValid = 0x00000080;
+
+    private static bool _visualStylesInitialized;
+    private static Windows.Win32.ReleaseActCtxSafeHandle? _visualStylesActivationContext;
+    private static nuint _visualStylesActivationCookie;
+
     internal static HINSTANCE GetModuleHandle()
     {
         return PInvoke.GetModuleHandle((PCWSTR)null);
+    }
+
+    [UnconditionalSuppressMessage("SingleFile", "IL3002", Justification = "Single-file case is handled via the embedded manifest fallback.")]
+    internal static void EnableVisualStyles()
+    {
+        if (_visualStylesInitialized)
+        {
+            return;
+        }
+
+        var module = typeof(NativeApplication).Module;
+        Windows.Win32.FreeLibrarySafeHandle moduleHandle = PInvoke.GetModuleHandle(module.Name);
+        if (!moduleHandle.IsInvalid)
+        {
+            // Normal library loads can activate the DLL's native manifest resource directly.
+            ACTCTXW actCtx = new()
+            {
+                cbSize = (uint)Marshal.SizeOf<ACTCTXW>(),
+                lpResourceName = (char*)NativeResourceManifestId,
+                dwFlags = ActctxFlagHmoduleValid | ActctxFlagResourceNameValid,
+                hModule = (HINSTANCE)moduleHandle.DangerousGetHandle(),
+            };
+
+            _visualStylesActivationContext = PInvoke.CreateActCtx(actCtx);
+
+            if (_visualStylesActivationContext is not null
+                && PInvoke.ActivateActCtx((HANDLE)_visualStylesActivationContext.DangerousGetHandle(), out _visualStylesActivationCookie))
+            {
+                _visualStylesInitialized = true;
+                return;
+            }
+        }
+
+        // Native AOT can fold the library into the app EXE, which may not carry this DLL manifest resource.
+        using Stream? manifestStream = module.Assembly.GetManifestResourceStream(XpThemesManifestResourceName);
+        if (manifestStream is null)
+        {
+            return;
+        }
+
+        string manifestPath = Path.Combine(Path.GetTempPath(), $"Sdcb.MiniWinForm.{Guid.NewGuid():N}.manifest");
+        try
+        {
+            using (FileStream fileStream = new(manifestPath, FileMode.Create, FileAccess.Write, FileShare.Read))
+            {
+                manifestStream.CopyTo(fileStream);
+            }
+
+            ACTCTXW actCtx = new()
+            {
+                cbSize = (uint)Marshal.SizeOf<ACTCTXW>(),
+            };
+
+            fixed (char* manifestPathPointer = manifestPath)
+            {
+                actCtx.lpSource = manifestPathPointer;
+                _visualStylesActivationContext = PInvoke.CreateActCtx(actCtx);
+                if (PInvoke.ActivateActCtx((HANDLE)_visualStylesActivationContext.DangerousGetHandle(), out _visualStylesActivationCookie))
+                {
+                    _visualStylesInitialized = true;
+                }
+            }
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(manifestPath);
+            }
+            catch
+            {
+            }
+        }
     }
 
     internal static void InitializeCommonControls()
