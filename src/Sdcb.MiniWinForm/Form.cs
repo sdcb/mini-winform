@@ -428,7 +428,7 @@ public sealed class Form : Control
 
     private MenuStrip? GetVisibleMainMenuStrip()
     {
-        if (_mainMenuStrip is not null && _mainMenuStrip.Parent == this)
+        if (_mainMenuStrip is not null)
         {
             return _mainMenuStrip;
         }
