@@ -16,7 +16,7 @@ param(
 
     [int]$TimeoutSeconds = 10,
 
-    [string]$WindowTitle,
+    [string]$WindowName,
 
     [string[]]$ArgumentList = @()
 )
@@ -133,15 +133,15 @@ function Find-VisibleTopLevelWindowByProcessId {
             [uint32]$candidateProcessId = 0
             [void][NativePidWindowCapture]::GetWindowThreadProcessId($candidate, [ref]$candidateProcessId)
 
-            $ownedWindowMatchesRequest = -not [string]::IsNullOrWhiteSpace($WindowTitle) -or
+            $ownedWindowMatchesRequest = -not [string]::IsNullOrWhiteSpace($WindowName) -or
                 [NativePidWindowCapture]::GetWindow($candidate, $GW_OWNER) -eq [IntPtr]::Zero
 
             if ($candidateProcessId -eq $ProcessId -and
                 [NativePidWindowCapture]::IsWindowVisible($candidate) -and
                 $ownedWindowMatchesRequest) {
-                if (-not [string]::IsNullOrWhiteSpace($WindowTitle)) {
+                if (-not [string]::IsNullOrWhiteSpace($WindowName)) {
                     $candidateTitle = Get-NativeWindowTitle -WindowHandle $candidate
-                    if ($candidateTitle -ne $WindowTitle) {
+                    if ($candidateTitle -ne $WindowName) {
                         return $true
                     }
                 }
@@ -337,11 +337,11 @@ try {
     $windowHandle = Find-VisibleTopLevelWindowByProcessId -ProcessId $process.Id -Process $process -Deadline $deadline
 
     if ($windowHandle -eq [IntPtr]::Zero) {
-        if ([string]::IsNullOrWhiteSpace($WindowTitle)) {
+        if ([string]::IsNullOrWhiteSpace($WindowName)) {
             throw "No visible top-level window was found for process ID $($process.Id)."
         }
 
-        throw "No visible top-level window titled '$WindowTitle' was found for process ID $($process.Id)."
+        throw "No visible top-level window named '$WindowName' was found for process ID $($process.Id)."
     }
 
     $capturedTitle = Get-NativeWindowTitle -WindowHandle $windowHandle

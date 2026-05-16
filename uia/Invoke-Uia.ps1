@@ -483,7 +483,7 @@ function Invoke-ScreenshotAction {
         [int]$Step
     )
 
-    $captureScript = Join-Path -Path $PSScriptRoot -ChildPath '..\capture-visible-process-window\Capture-VisibleProcessWindow.ps1'
+    $captureScript = Join-Path -Path $PSScriptRoot -ChildPath 'Capture-VisibleProcessWindow.ps1'
     if (-not (Test-Path -LiteralPath $captureScript -PathType Leaf)) {
         throw "Capture script not found: $captureScript"
     }
@@ -507,7 +507,7 @@ function Invoke-ScreenshotAction {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($Action.windowName)) {
-        $captureArguments.WindowTitle = [string]$Action.windowName
+        $captureArguments.WindowName = [string]$Action.windowName
     }
 
     & $captureScript @captureArguments

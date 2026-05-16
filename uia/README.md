@@ -1,12 +1,14 @@
-# Automate a visible process window with a text DSL
+# UI Automation for visible process windows
 
-This tutorial shows a repeatable way for an AI agent to launch or attach to a Windows GUI process, run batched UI Automation actions from plain text, and capture screenshots from inside the same action stream.
+This folder contains the UI Automation helper used by AI agents to launch or attach to a Windows GUI process, run batched UIA actions from plain text, capture screenshots, and print UIA trees.
 
-The reusable automation script is:
+The main entry point is:
 
 ```text
-docs/automate-visible-process-window/Invoke-VisibleProcessWindowAutomation.ps1
+uia/Invoke-Uia.ps1
 ```
+
+The screenshot implementation is kept beside it as `uia/Capture-VisibleProcessWindow.ps1`. Use `Invoke-Uia.ps1` as the normal entry point; it calls the screenshot script for `screenshot` actions.
 
 The script accepts the UI Automation DSL from the PowerShell pipeline, from `-ActionsText`, or from `-ActionsPath`. Prefer pipeline text, `-ActionsText`, or `-ActionsPath` for AI-driven work; it avoids JSON escaping and lets the AI write the action plan directly.
 
@@ -14,32 +16,29 @@ When piping text from a file, use `Get-Content -Raw` so the DSL arrives as one t
 
 ## Recommended AI Invocation
 
-Start from the repository root so relative executable and screenshot paths resolve predictably:
+Run commands from the repository root so relative executable and screenshot paths resolve predictably.
+
+Build or publish the target app first. For the demo app:
 
 ```powershell
-Set-Location C:\Projects\repos\win32-ctrl-demo
-```
-
-Build or publish the target app first. For the 07 sample app:
-
-```powershell
-dotnet publish .\07MiniWinFormDemo\07MiniWinFormDemo.csproj
+dotnet publish .\demo\Sdcb.MiniWinForm.Demo\Sdcb.MiniWinForm.Demo.csproj
 ```
 
 For AI-controlled terminals, prefer sending the automation as one PowerShell command. Building the DSL as an array joined with `[Environment]::NewLine` avoids partial multi-line input and keeps the whole run, action sequence, screenshots, and close operation together:
 
 ```powershell
 $dsl = @(
-    'run exePath=".\07MiniWinFormDemo\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish\07MiniWinFormDemo.exe"',
+    'run exePath=".\demo\Sdcb.MiniWinForm.Demo\bin\Release\net10.0-windows10.0.19041.0\Sdcb.MiniWinForm.Demo.exe"',
     'wait milliseconds=300',
     'screenshot outputPath=".\artifacts\screenshots\uia-initial.jpg" quality=85',
-    'click name="Perform step"',
+    'export-uiatree maxDepth=1',
+    'click name="Start demo"',
     'wait milliseconds=200',
     'screenshot outputPath=".\artifacts\screenshots\uia-after-click.jpg" quality=85',
     'close'
 ) -join [Environment]::NewLine
 
-$summary = $dsl | .\docs\automate-visible-process-window\Invoke-VisibleProcessWindowAutomation.ps1
+$summary = $dsl | .\uia\Invoke-Uia.ps1
 $summary
 ```
 
@@ -51,7 +50,7 @@ The final `close` statement closes the demo window. If you leave `close` out bec
 
 ```powershell
 $process = Start-Process .\path\to\app.exe -PassThru
-$summary = $dsl | .\docs\automate-visible-process-window\Invoke-VisibleProcessWindowAutomation.ps1 -ProcessId $process.Id -KeepOpen
+$summary = $dsl | .\uia\Invoke-Uia.ps1 -ProcessId $process.Id -KeepOpen
 Get-Process -Id $process.Id -ErrorAction SilentlyContinue | Stop-Process
 ```
 
@@ -62,8 +61,8 @@ Human-authored examples can still use a PowerShell here-string. For automated AI
 For repeatable samples, the same text can live in a `.uia.txt` file:
 
 ```powershell
-$result = .\docs\automate-visible-process-window\Invoke-VisibleProcessWindowAutomation.ps1 `
-    -ActionsPath .\docs\automate-visible-process-window\07-miniwinform-demo-actions.uia.txt
+$result = .\uia\Invoke-Uia.ps1 `
+    -ActionsPath .\uia\demo-actions.uia.txt
 ```
 
 This is still plain text DSL, not JSON. The pipeline form is usually better for ad hoc AI actions; the file form is useful for checked-in examples.
@@ -71,8 +70,8 @@ This is still plain text DSL, not JSON. The pipeline form is usually better for 
 You can also pipe the file as raw text:
 
 ```powershell
-$result = Get-Content .\docs\automate-visible-process-window\07-miniwinform-demo-actions.uia.txt -Raw |
-    .\docs\automate-visible-process-window\Invoke-VisibleProcessWindowAutomation.ps1
+$result = Get-Content .\uia\demo-actions.uia.txt -Raw |
+    .\uia\Invoke-Uia.ps1
 ```
 
 ## DSL Format
@@ -256,7 +255,7 @@ The flow is:
 6. Use `ValuePattern.SetValue` for editable controls.
 7. Use `InvokePattern.Invoke` for clicks.
 8. Fail the action if the requested UI Automation pattern is unavailable.
-9. Run `screenshot` actions by calling the existing visible-process capture script by process ID.
+9. Run `screenshot` actions by calling `Capture-VisibleProcessWindow.ps1` by process ID.
 10. Run `export-uiatree` actions directly with .NET UI Automation APIs.
 11. Run `close` actions by requesting a graceful main-window close.
 12. Return a single success summary line with the action count and elapsed time.
@@ -271,14 +270,14 @@ FlaUI.UIA3 is a good choice for a larger C# test harness, especially when you wa
 - easy line-oriented text that an AI can generate or edit;
 - `run`, attach, operation, screenshot, and close all fit in one action stream;
 - screenshots can be placed anywhere in the action stream;
-- structured output that can be piped into later steps;
+- concise final output plus intermediate screenshot paths and UIA trees;
 - works with Win32, and should also work with WPF or other UIA-friendly desktop apps.
 
 A good upgrade path is to keep the same DSL shape and replace only the executor with FlaUI if the app needs more advanced patterns, tree diagnostics, or cross-process test orchestration.
 
 ## Notes From Validation
 
-This workflow was validated against `07MiniWinFormDemo`.
+This workflow was validated against `Sdcb.MiniWinForm.Demo`.
 
 Observed results:
 
@@ -309,8 +308,9 @@ For follow-up AI agents, use this loop:
 4. Start the app with `run exePath="..."` inside the DSL.
 5. Add `wait` after launch and after UI actions that need repaint time.
 6. Include `screenshot` statements where visual inspection is useful.
-7. Inspect printed screenshot paths with `view_image`.
-8. Include `close` at the end when no more follow-up actions are needed.
-9. If needed, omit `close`, run the first script with `-KeepOpen`, save the `ProcessId`, and run another DSL script with `-ProcessId ...` against the still-open app.
+7. Include `export-uiatree` statements where UIA diagnostics are useful.
+8. Inspect printed screenshot paths with `view_image`.
+9. Include `close` at the end when no more follow-up actions are needed.
+10. If needed, omit `close`, run the first script with `-KeepOpen`, save the `ProcessId`, and run another DSL script with `-ProcessId ...` against the still-open app.
 
 This keeps UI automation fast and legible: AI writes intent as text, the script performs semantic UI operations, and screenshots provide visual feedback at chosen checkpoints.
