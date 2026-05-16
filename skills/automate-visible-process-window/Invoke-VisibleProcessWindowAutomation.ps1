@@ -155,15 +155,15 @@ function Find-ElementForAction {
     }
 
     $scope = [System.Windows.Automation.TreeScope]::Descendants
-    $matches = $Root.FindAll($scope, $condition)
+    $candidateElements = $Root.FindAll($scope, $condition)
     $index = if ($null -eq $Action.index) { 0 } else { [int]$Action.index }
 
-    if ($matches.Count -le $index) {
+    if ($candidateElements.Count -le $index) {
         $selector = ($Action | ConvertTo-Json -Compress)
         throw "No UI Automation element matched action selector at index $index. Selector: $selector"
     }
 
-    return $matches.Item($index)
+    return $candidateElements.Item($index)
 }
 
 function Invoke-ElementClick {
@@ -189,6 +189,82 @@ function Set-ElementValue {
     $valuePattern = $Element.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
     $valuePattern.SetValue($Value)
     return 'ValuePattern'
+}
+
+function Convert-Rect {
+    param([System.Windows.Rect]$Rect)
+
+    if ($Rect.IsEmpty) {
+        return [ordered]@{ left = 0; top = 0; width = 0; height = 0; empty = $true }
+    }
+
+    [ordered]@{
+        left = [int][Math]::Round($Rect.Left)
+        top = [int][Math]::Round($Rect.Top)
+        width = [int][Math]::Round($Rect.Width)
+        height = [int][Math]::Round($Rect.Height)
+        empty = $false
+    }
+}
+
+function Export-UiaElement {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Windows.Automation.AutomationElement]$Element,
+
+        [Parameter(Mandatory = $true)]
+        [int]$Depth,
+
+        [Parameter(Mandatory = $true)]
+        [int]$Index,
+
+        [Parameter(Mandatory = $true)]
+        [int]$MaxDepth
+    )
+
+    $current = $Element.Current
+    $node = [ordered]@{
+        depth = $Depth
+        index = $Index
+        name = $current.Name
+        automationId = $current.AutomationId
+        className = $current.ClassName
+        controlType = $current.ControlType.ProgrammaticName
+        processId = $current.ProcessId
+        boundingRectangle = Convert-Rect $current.BoundingRectangle
+        children = @()
+    }
+
+    if ($Depth -lt $MaxDepth) {
+        $children = $Element.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)
+        $childNodes = @()
+        for ($i = 0; $i -lt $children.Count; $i++) {
+            $childNodes += Export-UiaElement -Element $children[$i] -Depth ($Depth + 1) -Index $i -MaxDepth $MaxDepth
+        }
+
+        $node.children = $childNodes
+    }
+
+    return $node
+}
+
+function Export-UiaTree {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Diagnostics.Process]$TargetProcess,
+
+        [Parameter(Mandatory = $true)]
+        [System.Windows.Automation.AutomationElement]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [int]$MaxDepth
+    )
+
+    [ordered]@{
+        processId = $TargetProcess.Id
+        capturedAt = [DateTimeOffset]::Now.ToString('O')
+        root = Export-UiaElement -Element $Root -Depth 0 -Index 0 -MaxDepth $MaxDepth
+    }
 }
 
 function Read-ActionsText {
@@ -298,12 +374,13 @@ function ConvertFrom-DslText {
             continue
         }
 
-        if ($line -notmatch '^(?<command>[A-Za-z][A-Za-z0-9_-]*)(?<rest>\s+.*)?$') {
+        $statementMatch = [regex]::Match($line, '^(?<command>[A-Za-z][A-Za-z0-9_-]*)(?<rest>\s+.*)?$')
+        if (-not $statementMatch.Success) {
             throw "Line ${lineNumber}: expected a command followed by key=value arguments."
         }
 
-        $command = $Matches.command
-        $rest = if ($null -eq $Matches.rest) { '' } else { $Matches.rest.Trim() }
+        $command = $statementMatch.Groups['command'].Value
+        $rest = if (-not $statementMatch.Groups['rest'].Success) { '' } else { $statementMatch.Groups['rest'].Value.Trim() }
         $action = [ordered]@{ action = $command }
         $position = 0
 
@@ -429,8 +506,8 @@ function Invoke-ScreenshotAction {
         TimeoutSeconds = $timeout
     }
 
-    if (-not [string]::IsNullOrWhiteSpace($Action.windowTitle)) {
-        $captureArguments.WindowTitle = [string]$Action.windowTitle
+    if (-not [string]::IsNullOrWhiteSpace($Action.windowName)) {
+        $captureArguments.WindowTitle = [string]$Action.windowName
     }
 
     & $captureScript @captureArguments
@@ -563,6 +640,7 @@ $root = $null
 $rootName = $null
 $rootHwnd = $null
 $closedByDsl = $false
+$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
 if (-not [string]::IsNullOrWhiteSpace($ExePath)) {
     $startInfo = @{
@@ -654,6 +732,25 @@ try {
             continue
         }
 
+        if ($kind -eq 'export-uiatree' -or $kind -eq 'exportuiatree') {
+            $process = Get-RequiredTargetProcess -TargetProcess $process -Command $kind
+            $treeWindowName = if ($null -ne $action.windowName) { [string]$action.windowName } else { $null }
+            $treeTimeoutSeconds = if ($null -eq $action.timeoutSeconds) { $TimeoutSeconds } else { [int]$action.timeoutSeconds }
+            $treeRoot = Resolve-TargetRoot -TargetProcess $process -CurrentRoot $root -WaitSeconds $treeTimeoutSeconds -WindowTitle $treeWindowName
+            $maxDepth = if ($null -eq $action.maxDepth) { 4 } else { [int]$action.maxDepth }
+            $uiaTree = Export-UiaTree -TargetProcess $process -Root $treeRoot -MaxDepth $maxDepth
+            Write-Host 'UiaTree:'
+            Write-Host ($uiaTree | ConvertTo-Json -Depth 64)
+            $results.Add([pscustomobject]@{
+                Step = $step
+                Action = $kind
+                Method = 'ExportUiaTree'
+                WindowName = $treeRoot.Current.Name
+                MaxDepth = $maxDepth
+            })
+            continue
+        }
+
         if ($kind -eq 'close') {
             $process = Get-RequiredTargetProcess -TargetProcess $process -Command $kind
             $closeResult = Invoke-CloseAction -TargetProcess $process -Action $action
@@ -688,7 +785,7 @@ try {
             'setvalue' { Set-ElementValue -Element $element -Value ([string]$action.value) }
             'settext' { Set-ElementValue -Element $element -Value ([string]$action.value) }
             'focus' { $element.SetFocus(); 'SetFocus' }
-            default { throw "Unsupported action '$kind'. Supported actions: run, setValue, setText, click, invoke, focus, wait, screenshot, close." }
+            default { throw "Unsupported action '$kind'. Supported actions: run, setValue, setText, click, invoke, focus, wait, screenshot, export-uiatree, close." }
         }
 
         $results.Add([pscustomobject]@{
@@ -703,13 +800,8 @@ try {
         })
     }
 
-    [pscustomobject]@{
-        ProcessId = if ($null -eq $process) { $null } else { $process.Id }
-        RootName = $rootName
-        RootHwnd = $rootHwnd
-        ActionCount = $results.Count
-        Results = $results
-    }
+    $stopwatch.Stop()
+    'Success: executed {0} actions in {1:N0} ms.' -f $results.Count, $stopwatch.Elapsed.TotalMilliseconds
 }
 finally {
     if ($launchedProcess -and -not $closedByDsl -and -not $KeepOpen -and -not $launchedProcess.HasExited) {

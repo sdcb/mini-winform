@@ -39,21 +39,20 @@ $dsl = @(
     'close'
 ) -join [Environment]::NewLine
 
-$result = $dsl | .\docs\automate-visible-process-window\Invoke-VisibleProcessWindowAutomation.ps1
-
-$result | ConvertTo-Json -Depth 6
-$result.ProcessId | Set-Content .\artifacts\screenshots\uia-last-process.pid
+$summary = $dsl | .\docs\automate-visible-process-window\Invoke-VisibleProcessWindowAutomation.ps1
+$summary
 ```
 
-Replace the `click` selector and screenshot names for the workflow being tested. Keep `wait` statements after launch and after UI actions that repaint the window, then inspect the returned screenshot paths before making visual claims.
+Replace the `click` selector and screenshot names for the workflow being tested. Keep `wait` statements after launch and after UI actions that repaint the window, then inspect the screenshot paths printed during the run before making visual claims.
 
-Ask the AI agent to inspect any screenshot `Path` returned by `screenshot` actions with `view_image`.
+Ask the AI agent to inspect any screenshot path printed by `screenshot` actions with `view_image`.
 
-The final `close` statement closes the demo window. If you leave `close` out because you want follow-up actions, run the script with `-KeepOpen` and close the demo process manually later:
+The final `close` statement closes the demo window. If you leave `close` out because you want follow-up actions, launch or track the process separately, run the script with `-ProcessId` and `-KeepOpen`, and close the demo process manually later:
 
 ```powershell
-$processId = Get-Content .\artifacts\screenshots\uia-last-process.pid
-Get-Process -Id $processId -ErrorAction SilentlyContinue | Stop-Process
+$process = Start-Process .\path\to\app.exe -PassThru
+$summary = $dsl | .\docs\automate-visible-process-window\Invoke-VisibleProcessWindowAutomation.ps1 -ProcessId $process.Id -KeepOpen
+Get-Process -Id $process.Id -ErrorAction SilentlyContinue | Stop-Process
 ```
 
 Human-authored examples can still use a PowerShell here-string. For automated AI terminal execution, the single-command array form above is the most repeatable.
@@ -82,7 +81,7 @@ The DSL is line oriented: one action per statement, with `key=value` arguments. 
 
 ```text
 statement  := command arguments?
-command    := run | setValue | click | wait | screenshot | close
+command    := run | setValue | click | wait | screenshot | export-uiatree | close
 argument   := key "=" value
 value      := number | identifier | quotedString | heredoc
 quotedString := "..."
@@ -129,7 +128,8 @@ Supported commands:
 - `click` or `invoke`: invoke a button-like element with UIA `InvokePattern` first.
 - `focus`: move focus to an element.
 - `wait`: pause between UI transitions.
-- `screenshot`: capture the current process window and include the image path in the result.
+- `screenshot`: capture the current process window and print the image path.
+- `export-uiatree`: print the current process window's UI Automation tree as JSON.
 - `close`: close the target process window.
 
 Supported selector fields for UI actions:
@@ -160,6 +160,10 @@ Run arguments:
 
 The script still supports the older outer launch/attach style with `-ExePath` or `-ProcessId`. Use that when you want the shell command to control the target process instead of the DSL.
 
+## Intermediate Output
+
+The only DSL actions that produce intermediate console output are `screenshot` and `export-uiatree`. Every successful run still finishes with a single summary line.
+
 ## Screenshot Command
 
 `screenshot` can be used with no arguments:
@@ -170,7 +174,7 @@ screenshot
 
 By default, screenshots go to `artifacts/screenshots` with generated names like `uia-step-07.jpg`, using `PrintWindow` capture and JPEG quality `80`.
 
-Every `screenshot` statement prints its image path to the console immediately, and the same path is also included in the final structured result object.
+Every `screenshot` statement prints its image path to the console immediately.
 
 You can override the output per screenshot:
 
@@ -180,11 +184,11 @@ click name="Show TaskDialog"
 screenshot outputPath=".\artifacts\screenshots\after-click.jpg" quality=85
 ```
 
-To capture a child window or dialog instead of the process main window, pass `windowTitle`. The search is limited to visible top-level windows that belong to the current target process:
+To capture a child window or dialog instead of the process main window, pass `windowName`. The search is limited to visible top-level windows that belong to the current target process:
 
 ```text
 click name="Show dialog window"
-screenshot windowTitle="Modal child dialog" outputPath=".\artifacts\screenshots\modal-dialog.png"
+screenshot windowName="Modal child dialog" outputPath=".\artifacts\screenshots\modal-dialog.png"
 click windowTitle="Modal child dialog" name="OK"
 ```
 
@@ -194,9 +198,31 @@ Screenshot arguments:
 - `quality`: JPEG quality from `1` to `100`.
 - `format`: extension used for generated paths when `outputPath` is omitted.
 - `timeoutSeconds`: wait time for finding the visible top-level window.
-- `windowTitle`: optional visible top-level window title within the current process.
+- `windowName`: optional visible top-level window name within the current process.
 
 Screenshots always use `PrintWindow` because it asks the target window to render itself and does not depend on the desktop being unlocked or unobscured. Popup menus, dropdowns, tooltips, and other separate transient windows may not be included; validate those through UI Automation state or app-visible results instead.
+
+## Export UIA Tree Command
+
+`export-uiatree` prints a JSON UI Automation tree for the current target window:
+
+```text
+export-uiatree
+```
+
+The output starts with `UiaTree:` followed by the JSON tree. The tree includes each node's name, automation ID, class name, control type, process ID, bounding rectangle, and children.
+
+To capture a child window or dialog instead of the process main window, pass `windowName`:
+
+```text
+export-uiatree windowName="Modal child dialog" maxDepth=6
+```
+
+Export UIA tree arguments:
+
+- `maxDepth`: maximum child depth to include. Defaults to `4`.
+- `timeoutSeconds`: wait time for finding the visible top-level window.
+- `windowName`: optional visible top-level window name within the current process.
 
 ## Close Command
 
@@ -231,8 +257,9 @@ The flow is:
 7. Use `InvokePattern.Invoke` for clicks.
 8. Fail the action if the requested UI Automation pattern is unavailable.
 9. Run `screenshot` actions by calling the existing visible-process capture script by process ID.
-10. Run `close` actions by requesting a graceful main-window close.
-11. Return structured results with the method used for each action and any screenshot paths.
+10. Run `export-uiatree` actions directly with .NET UI Automation APIs.
+11. Run `close` actions by requesting a graceful main-window close.
+12. Return a single success summary line with the action count and elapsed time.
 
 The DSL intentionally avoids coordinate-style automation and alternate execution paths. If an element cannot satisfy the requested semantic UI Automation operation, the action fails.
 
@@ -261,7 +288,7 @@ Observed results:
 - `screenshot` can appear multiple times in one DSL stream, so an AI can inspect intermediate states without relaunching the app.
 - `close` can finish the app from the same DSL stream after the final screenshot.
 - `PrintWindow` is the only supported screenshot capture path. It is intended for the target process main window, not transient popup menus or dropdowns.
-- Treat the structured result and screenshots as complementary evidence. The result proves UIA found and invoked the elements; the screenshot proves the user-visible state changed.
+- Treat the success summary and screenshots as complementary evidence. The summary proves the DSL finished; the screenshot proves the user-visible state changed.
 
 Older validation notes:
 
@@ -282,7 +309,7 @@ For follow-up AI agents, use this loop:
 4. Start the app with `run exePath="..."` inside the DSL.
 5. Add `wait` after launch and after UI actions that need repaint time.
 6. Include `screenshot` statements where visual inspection is useful.
-7. Inspect returned screenshot paths with `view_image`.
+7. Inspect printed screenshot paths with `view_image`.
 8. Include `close` at the end when no more follow-up actions are needed.
 9. If needed, omit `close`, run the first script with `-KeepOpen`, save the `ProcessId`, and run another DSL script with `-ProcessId ...` against the still-open app.
 
