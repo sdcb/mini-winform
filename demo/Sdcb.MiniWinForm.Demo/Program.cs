@@ -2,7 +2,7 @@ using System.Drawing;
 using Sdcb.MiniWinForm;
 using Timer = Sdcb.MiniWinForm.Timer;
 
-// Application.EnableVisualStyles();
+Application.EnableVisualStyles();
 Application.Run(CreateMainForm());
 
 static Form CreateMainForm()
