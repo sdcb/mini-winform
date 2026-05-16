@@ -1,0 +1,4 @@
+<Solution>
+	<Project Path="src/Sdcb.MiniWinForm/Sdcb.MiniWinForm.csproj" />
+	<Project Path="demo/Sdcb.MiniWinForm.Demo/Sdcb.MiniWinForm.Demo.csproj" />
+</Solution>
