@@ -1,4 +1,4 @@
-# Sdcb.MiniWinForm
+# Sdcb.MiniWinForm [![NuGet Downloads](https://img.shields.io/nuget/dt/Sdcb.MiniWinForm?style=flat-square&logo=nuget)](https://www.nuget.org/packages/Sdcb.MiniWinForm) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 
 Sdcb.MiniWinForm is a small Win32 GUI toolkit for .NET Native AOT utilities.
 

@@ -16,6 +16,7 @@
     <Authors>sdcb</Authors>
     <PackageId>Sdcb.MiniWinForm</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Description>A small Win32 GUI toolkit for Native AOT utilities that stays close to the WinForms programming model while keeping the published executable as small as possible.</Description>
     <RepositoryUrl>https://github.com/sdcb/mini-winform</RepositoryUrl>
     <PackageProjectUrl>https://github.com/sdcb/mini-winform</PackageProjectUrl>
