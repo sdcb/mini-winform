@@ -45,10 +45,10 @@ public abstract class Control : IWin32Window
     protected Control(bool tabStop, int width, int height)
     {
         _tabStop = tabStop;
-        _width = width;
-        _height = height;
-        _specifiedWidth = width;
-        _specifiedHeight = height;
+        _width = Math.Max(0, width);
+        _height = Math.Max(0, height);
+        _specifiedWidth = _width;
+        _specifiedHeight = _height;
         Controls = new ControlCollection(this);
     }
 
@@ -78,25 +78,25 @@ public abstract class Control : IWin32Window
     public int Left
     {
         get => _left;
-        set => SetSpecifiedBounds(value, Top, Width, Height);
+        set => SetSpecifiedBounds(value, _specifiedTop, _specifiedWidth, _specifiedHeight);
     }
 
     public int Top
     {
         get => _top;
-        set => SetSpecifiedBounds(Left, value, Width, Height);
+        set => SetSpecifiedBounds(_specifiedLeft, value, _specifiedWidth, _specifiedHeight);
     }
 
     public int Width
     {
         get => _width;
-        set => SetSpecifiedBounds(Left, Top, value, Height);
+        set => SetSpecifiedBounds(_specifiedLeft, _specifiedTop, value, _specifiedHeight);
     }
 
     public int Height
     {
         get => _height;
-        set => SetSpecifiedBounds(Left, Top, Width, value);
+        set => SetSpecifiedBounds(_specifiedLeft, _specifiedTop, _specifiedWidth, value);
     }
 
     public DockStyle Dock
@@ -115,7 +115,7 @@ public abstract class Control : IWin32Window
             _anchorInfoInitialized = false;
             if (_dock == DockStyle.None)
             {
-                SetBoundsCore(_specifiedLeft, _specifiedTop, _specifiedWidth, _specifiedHeight);
+                SetBoundsFromSpecified();
                 UpdateAnchorInfo();
             }
 
@@ -139,7 +139,7 @@ public abstract class Control : IWin32Window
             if (Dock != DockStyle.None)
             {
                 _dock = DockStyle.None;
-                SetBoundsCore(_specifiedLeft, _specifiedTop, _specifiedWidth, _specifiedHeight);
+                SetBoundsFromSpecified();
             }
 
             UpdateAnchorInfo();
@@ -622,7 +622,7 @@ public abstract class Control : IWin32Window
                 {
                     case DockStyle.Top:
                     {
-                        int childHeight = Math.Min(child._specifiedHeight, height);
+                        int childHeight = Math.Min(child.GetSpecifiedHeight(), height);
                         child.SetBoundsFromLayout(left, top, width, childHeight);
                         top += child.Height;
                         height -= child.Height;
@@ -630,14 +630,14 @@ public abstract class Control : IWin32Window
                     }
                     case DockStyle.Bottom:
                     {
-                        int childHeight = Math.Min(child._specifiedHeight, height);
+                        int childHeight = Math.Min(child.GetSpecifiedHeight(), height);
                         child.SetBoundsFromLayout(left, top + height - childHeight, width, childHeight);
                         height -= child.Height;
                         break;
                     }
                     case DockStyle.Left:
                     {
-                        int childWidth = Math.Min(child._specifiedWidth, width);
+                        int childWidth = Math.Min(child.GetSpecifiedWidth(), width);
                         child.SetBoundsFromLayout(left, top, childWidth, height);
                         left += child.Width;
                         width -= child.Width;
@@ -645,7 +645,7 @@ public abstract class Control : IWin32Window
                     }
                     case DockStyle.Right:
                     {
-                        int childWidth = Math.Min(child._specifiedWidth, width);
+                        int childWidth = Math.Min(child.GetSpecifiedWidth(), width);
                         child.SetBoundsFromLayout(left + width - childWidth, top, childWidth, height);
                         width -= child.Width;
                         break;
@@ -699,7 +699,7 @@ public abstract class Control : IWin32Window
 
         if (Dock == DockStyle.None || Parent is null)
         {
-            SetBoundsCore(left, top, width, height);
+            SetBoundsCore(left, top, _specifiedWidth, _specifiedHeight);
             UpdateAnchorInfo();
             return;
         }
@@ -710,6 +710,11 @@ public abstract class Control : IWin32Window
     private void SetBoundsFromLayout(int left, int top, int width, int height)
     {
         SetBoundsCore(left, top, width, height);
+    }
+
+    private void SetBoundsFromSpecified()
+    {
+        SetBoundsCore(_specifiedLeft, _specifiedTop, _specifiedWidth, _specifiedHeight);
     }
 
     private void EnsureAnchorInfo()
@@ -787,6 +792,10 @@ public abstract class Control : IWin32Window
     }
 
     private bool IsAnchored(AnchorStyles anchor) => (Anchor & anchor) == anchor;
+
+    private int GetSpecifiedWidth() => _specifiedWidth;
+
+    private int GetSpecifiedHeight() => _specifiedHeight;
 
     private void SetBoundsCore(int left, int top, int width, int height)
     {

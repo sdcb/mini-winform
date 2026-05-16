@@ -2,6 +2,7 @@ using System.Drawing;
 using Sdcb.MiniWinForm;
 using Timer = Sdcb.MiniWinForm.Timer;
 
+Application.SetHighDpiMode(HighDpiMode.SystemAware);
 Application.EnableVisualStyles();
 Application.Run(CreateMainForm());
 

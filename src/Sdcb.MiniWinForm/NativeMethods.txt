@@ -63,6 +63,17 @@ DrawFrameControl
 FillRect
 FrameRect
 InitCommonControlsEx
+GetThreadDpiAwarenessContext
+GetAwarenessFromDpiAwarenessContext
+AreDpiAwarenessContextsEqual
+IsValidDpiAwarenessContext
+GetDpiForWindow
+GetDpiForSystem
+GetProcessDpiAwareness
+SetProcessDpiAwareness
+SetProcessDpiAwarenessContext
+IsProcessDPIAware
+SetProcessDPIAware
 CreateActCtx
 ActivateActCtx
 TaskDialog
