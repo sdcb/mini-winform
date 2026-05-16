@@ -12,7 +12,7 @@ public sealed class MenuStrip : Control, IToolStripItemOwner
 
     public ToolStripItemCollection Items { get; }
 
-    internal Form? Owner => _owner;
+    internal Form? Owner => _owner ?? Parent as Form;
 
     internal override string NativeClassName => "STATIC";
 
@@ -63,9 +63,10 @@ public sealed class MenuStrip : Control, IToolStripItemOwner
 
     void IToolStripItemOwner.NotifyItemsChanged()
     {
-        if (_owner is not null && _owner.IsHandleCreated)
+        Form? owner = Owner;
+        if (owner is not null && owner.IsHandleCreated)
         {
-            _owner.ApplyMainMenu();
+            owner.ApplyMainMenu();
         }
     }
 }

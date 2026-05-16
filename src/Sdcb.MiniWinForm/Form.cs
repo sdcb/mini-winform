@@ -428,14 +428,14 @@ public sealed class Form : Control
 
     private MenuStrip? GetVisibleMainMenuStrip()
     {
-        if (_mainMenuStrip is not null)
+        if (_mainMenuStrip is not null && _mainMenuStrip.Parent == this && _mainMenuStrip.Visible)
         {
             return _mainMenuStrip;
         }
 
         foreach (Control control in Controls)
         {
-            if (control is MenuStrip menuStrip)
+            if (control is MenuStrip menuStrip && menuStrip.Visible)
             {
                 return menuStrip;
             }

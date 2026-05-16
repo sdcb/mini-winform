@@ -12,7 +12,7 @@ static Form CreateMainForm()
     {
         Text = "Sdcb.MiniWinForm Demo",
         Width = 760,
-        Height = 520,
+        Height = 560,
     };
 
     MenuStrip menu = new();
@@ -38,14 +38,14 @@ static Form CreateMainForm()
         Left = 20,
         Top = 52,
         Width = 680,
-        Height = 42,
+        Height = 52,
         Text = "This demo intentionally stays small. It shows layout, menus, progress, list selection, timers, and task dialogs using the WinForms-like API surface.",
     };
 
     TextBox input = new()
     {
         Left = 20,
-        Top = 108,
+        Top = 116,
         Width = 320,
         Text = "Native AOT utility",
     };
@@ -53,7 +53,7 @@ static Form CreateMainForm()
     CheckBox marquee = new()
     {
         Left = 360,
-        Top = 106,
+        Top = 114,
         Width = 220,
         Text = "Use marquee progress bar",
     };
@@ -61,7 +61,7 @@ static Form CreateMainForm()
     ListBox scenarios = new()
     {
         Left = 20,
-        Top = 148,
+        Top = 156,
         Width = 220,
         Height = 180,
     };
@@ -71,7 +71,7 @@ static Form CreateMainForm()
     TextBox notes = new()
     {
         Left = 260,
-        Top = 148,
+        Top = 156,
         Width = 440,
         Height = 180,
         Multiline = true,
@@ -82,7 +82,7 @@ static Form CreateMainForm()
     ProgressBar progress = new()
     {
         Left = 20,
-        Top = 350,
+        Top = 362,
         Width = 680,
         Height = 24,
     };
@@ -90,16 +90,16 @@ static Form CreateMainForm()
     Label status = new()
     {
         Left = 20,
-        Top = 384,
+        Top = 398,
         Width = 680,
-        Height = 24,
+        Height = 30,
         Text = "Ready.",
     };
 
     Button startButton = new()
     {
         Left = 20,
-        Top = 420,
+        Top = 440,
         Width = 130,
         Text = "Start demo",
         BackColor = Color.FromArgb(230, 240, 255),
@@ -108,7 +108,7 @@ static Form CreateMainForm()
     Button resetButton = new()
     {
         Left = 164,
-        Top = 420,
+        Top = 440,
         Width = 130,
         Text = "Reset",
     };
@@ -167,6 +167,7 @@ static Form CreateMainForm()
         }
     };
 
+    form.Controls.Add(menu);
     form.Controls.Add(title);
     form.Controls.Add(description);
     form.Controls.Add(input);
