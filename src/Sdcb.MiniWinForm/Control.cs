@@ -262,6 +262,22 @@ public abstract class Control : IWin32Window
 
     public event EventHandler? EnabledChanged;
 
+    public object? Invoke(Delegate method) => Invoke(method, null);
+
+    public object? Invoke(Action method) => Invoke(method, null);
+
+    public object? Invoke(Delegate method, params object?[]? args)
+    {
+        ArgumentNullException.ThrowIfNull(method);
+
+        if (Application.IsUiThread)
+        {
+            return method.DynamicInvoke(args);
+        }
+
+        return EndInvoke(BeginInvoke(method, args));
+    }
+
     public IAsyncResult BeginInvoke(Delegate method) => BeginInvoke(method, null);
 
     public IAsyncResult BeginInvoke(Action method) => BeginInvoke(method, null);

@@ -45,10 +45,18 @@ public static class Application
         _mainForm = mainWindow;
 
         mainWindow.CreateHandle();
-        mainWindow.Show();
+        bool synchronizationContextInstalled = InstallSynchronizationContext(mainWindow, out SynchronizationContext? previousSynchronizationContext);
 
-        RunMainMessageLoop();
-        _mainForm = null;
+        try
+        {
+            mainWindow.Show();
+            RunMainMessageLoop();
+        }
+        finally
+        {
+            RestoreSynchronizationContext(synchronizationContextInstalled, previousSynchronizationContext);
+            _mainForm = null;
+        }
     }
 
     internal static DialogResult RunDialog(Form form)
@@ -57,8 +65,17 @@ public static class Application
 
         InitializeThread();
         form.ShowDialogWindow();
-        RunDialogMessageLoop(form);
-        return form.DialogResult;
+        bool synchronizationContextInstalled = InstallSynchronizationContext(form, out SynchronizationContext? previousSynchronizationContext);
+
+        try
+        {
+            RunDialogMessageLoop(form);
+            return form.DialogResult;
+        }
+        finally
+        {
+            RestoreSynchronizationContext(synchronizationContextInstalled, previousSynchronizationContext);
+        }
     }
 
     internal static void OnFormDestroyed(Form form)
@@ -130,6 +147,30 @@ public static class Application
         if (_uiThreadId != 0 && Environment.CurrentManagedThreadId != _uiThreadId)
         {
             throw new InvalidOperationException("Controls can only be accessed from the UI thread.");
+        }
+    }
+
+    internal static bool IsUiThread => _uiThreadId != 0 && Environment.CurrentManagedThreadId == _uiThreadId;
+
+    private static bool InstallSynchronizationContext(Control marshalingControl, out SynchronizationContext? previousContext)
+    {
+        SynchronizationContext? currentContext = SynchronizationContext.Current;
+        if (currentContext is not null && currentContext.GetType() != typeof(SynchronizationContext))
+        {
+            previousContext = null;
+            return false;
+        }
+
+        previousContext = currentContext;
+        SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext(marshalingControl));
+        return true;
+    }
+
+    private static void RestoreSynchronizationContext(bool installed, SynchronizationContext? previousContext)
+    {
+        if (installed)
+        {
+            SynchronizationContext.SetSynchronizationContext(previousContext);
         }
     }
 

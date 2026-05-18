@@ -113,6 +113,14 @@ static Form CreateMainForm()
         Text = "Reset",
     };
 
+    Button awaitButton = new()
+    {
+        Left = 308,
+        Top = 464,
+        Width = 150,
+        Text = "Test await UI",
+    };
+
     Timer timer = new()
     {
         Interval = 120,
@@ -134,6 +142,14 @@ static Form CreateMainForm()
         progress.Value = 0;
         status.Text = "Ready.";
         notes.Text = "Pick a scenario on the left, then click Start demo to update the progress bar and status text.";
+    };
+
+    awaitButton.Click += async (_, _) =>
+    {
+        int beforeThreadId = Environment.CurrentManagedThreadId;
+        status.Text = $"Awaiting from UI thread {beforeThreadId}...";
+        await Task.Delay(250);
+        status.Text = $"Await resumed on UI thread {Environment.CurrentManagedThreadId}; started on {beforeThreadId}.";
     };
 
     scenarios.SelectedIndexChanged += (_, _) =>
@@ -178,6 +194,7 @@ static Form CreateMainForm()
     form.Controls.Add(status);
     form.Controls.Add(startButton);
     form.Controls.Add(resetButton);
+    form.Controls.Add(awaitButton);
     return form;
 }
 
